@@ -1,0 +1,23 @@
+Go-Lang generete golang routes file structure similar to the one below (Beer). 
+Dont give any explanation, just give code snippet, dont give the generated function right way , just answer yes if you understand. Post that I have give you and information for you to create the new routes file. dont combine the files/routes .  
+
+
+package routes
+
+import (
+	"log"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/vivekbnwork/bz-backend/bz-main/controllers"
+)
+
+func initializeBeerRoutes(router *gin.Engine, BeerController *controllers.BeerController) {
+	var baseAPIURL = os.Getenv("BASE_API_URL")
+
+	group := router.Group(baseAPIURL + "/Beers")
+	{
+		log.Println(group)
+
+	}
+}

@@ -1,0 +1,19 @@
+Go-Lang generete golang controller file structure similar to the one below (Beer). 
+Dont give any explanation, 
+just give code snippet, dont give the generated function right way , just answer yes if you understand. Post that I have give you and information for you to create the new controller file. 
+
+package controllers
+
+import (
+	"github.com/vivekbnwork/bz-backend/bz-main/service"
+)
+
+type BeerController struct {
+	BeerService *service.BeerService
+}
+
+// Constructor function for BeerController
+func NewBeerController(s *service.BeerService) *BeerController {
+	return &BeerController{BeerService: s}
+}
+

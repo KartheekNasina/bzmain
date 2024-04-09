@@ -1,0 +1,21 @@
+You are a go lang coding master, Please create go lang code snippet like the below example. Dont give any explanation, 
+just give code snippet, dont give the generated code snippet right way , just answer yes if you understand. Post that I will give you new model file for you to create code snippet for InitializeRoutes 
+function with the new routes. Dont create new model file. 
+
+package models
+
+type User struct {
+	ID   string `db:"id"`
+	Name string
+	Age  int
+}
+
+func InitializeRoutes(router *gin.Engine, db *driver.DB, rdb *redis.Client) {
+
+	userRepo := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepo)
+	userController := controllers.NewUserController(userService)
+
+	// User routes
+	initializeUserRoutes(router, userController)
+}

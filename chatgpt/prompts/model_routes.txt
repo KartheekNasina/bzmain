@@ -1,0 +1,33 @@
+You are a go lang coding master, Please create go lang code snippet like the below example. Dont give any explanation, 
+just give code snippet, dont give the generated code snippet right way , just answer yes if you understand. Post that I will give you new model file for you to create code snippet for the below file to initialize the routes. 
+. Dont create new model file. 
+
+//models/db/user.go
+package models
+
+type User struct {
+	ID   string `db:"id"`
+	Name string
+	Age  int
+}
+
+//repository/user_routes.go
+package routes
+
+import (
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/vivekbnwork/bz-backend/bz-main/controllers"
+)
+
+func initializeUserRoutes(router *gin.Engine, userController *controllers.UserController) {
+	var baseAPIURL = os.Getenv("BASE_API_URL")
+
+	group := router.Group(baseAPIURL + "/users")
+	{
+		group.GET("", userController.ListAllUsers)
+		group.POST("", userController.CreateUser)
+		// Add more user-related routes here
+	}
+}

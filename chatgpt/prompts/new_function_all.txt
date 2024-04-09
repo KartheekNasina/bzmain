@@ -1,0 +1,140 @@
+You are a go lang coding master, Please create similar function for different model and function type. 
+just give code snippet, dont give the generated file right way , just answer yes if you understand. Post that I will give you new model name create function and route line.  
+
+
+func (us *UserService) ListUsers() ([]dto.UserDTO, error) {
+	logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "ListUsers",
+	}).Debug("List Users - Start")
+
+	defer logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "ListUsers",
+	}).Debug("List Users - End")
+
+	users, err := us.userRepo.ListUsers()
+	if err != nil {
+		return nil, err
+	}
+
+	var userDtos []dto.UserDTO
+	copier.Copy(&userDtos, &users)
+
+	return userDtos, nil
+}
+
+func (us *UserService) CreateUser(userDTO *dto.UserDTO) error {
+	logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "CreateUser",
+	}).Debug("Create User - Start")
+
+	defer logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "CreateUser",
+	}).Debug("Create User - End")
+
+	// Create a new instance of models.User
+	var user models.User
+
+	// Copy data from userDTO to the new user instance
+	if err := copier.Copy(&user, userDTO); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service": "bz-main",
+			"event":   "CreateUser",
+		}).Errorf("Failed to copy data from userDTO to user: %v", err)
+		return err
+	}
+
+	// Call the repository's CreateUser function with the created user model
+	err := us.userRepo.CreateUser(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *UserService) GetUsers(limit, offset int) ([]dto.UserDTO, error) {
+	logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "GetUsers",
+	}).Debug("Get Users - Start")
+
+	defer logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "GetUsers",
+	}).Debug("Get Users - End")
+
+	users, err := us.userRepo.GetUsers(limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	var userDtos []dto.UserDTO
+	copier.Copy(&userDtos, &users)
+
+	return userDtos, nil
+}
+
+------------------------------------------------------------------------------------------
+
+
+func (uc *UserController) ListUsers(c *gin.Context) {
+	users, err := uc.userService.ListUsers()
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, users)
+}
+
+func (uc *UserController) CreateUser(c *gin.Context) {
+	var userDTO dto.UserDTO
+	if err := c.BindJSON(&userDTO); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := uc.userService.CreateUser(&userDTO)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(201, gin.H{"message": "User created successfully"})
+}
+
+func (uc *UserController) GetUsers(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid limit parameter"})
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid offset parameter"})
+		return
+	}
+
+	users, err := uc.userService.GetUsers(limit, offset)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, users)
+}
+-------------------- 
+
+group.GET("/all", userController.ListUsers)
+group.POST("", userController.CreateUser)
+group.GET("", userController.GetUsers)
+
+

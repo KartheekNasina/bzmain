@@ -1,0 +1,483 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"sync"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"github.com/joho/godotenv"
+	"github.com/vivekbnwork/bz-backend/bz-main/driver"
+	models "github.com/vivekbnwork/bz-backend/bz-main/models/db"
+	"github.com/vivekbnwork/bz-backend/bz-main/repository/postgres"
+	"github.com/vivekbnwork/bz-backend/bz-main/service"
+)
+
+func init() {
+	loadEnv()
+}
+
+func loadEnv() {
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found")
+	}
+}
+
+var ctx = context.Background()
+
+type UpdateTrendingRequest struct {
+	BreweryID string  `json:"brewery_id"`
+	Increment float64 `json:"increment"`
+}
+
+func main() {
+	fmt.Println("Test API")
+
+	db := connectDatabase()
+	defer db.Pool.Close()
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379", // Redis server address
+		Password: "",               // No password
+		DB:       0,                // Default DB
+	})
+
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		fmt.Println("Could not connect to Redis:", err)
+		return
+	}
+
+	fmt.Println("Connected to Redis:", pong)
+
+	breweryRepository := postgres.NewBreweryRepository(db)
+	breweryService := service.NewBreweryService(breweryRepository, rdb)
+
+	eventRepository := postgres.NewEventRepository(db)
+	eventService := service.NewEventService(eventRepository, rdb)
+
+	// Create a repository and service for Tours
+	tourRepository := postgres.NewTourRepository(db)           // Assuming you have a NewTourRepository function
+	tourService := service.NewTourService(tourRepository, rdb) // Assuming you have a NewTourService function
+
+	// Create a repository and service for BrewClasses
+	brewClassRepository := postgres.NewBrewClassRepository(db)                // Assuming you have a NewBrewClassRepository function
+	brewClassService := service.NewBrewClassService(brewClassRepository, rdb) // Assuming you have a NewBrewClassService function
+
+	r := gin.Default()
+
+	baseAPIURL := os.Getenv("BASE_API_URL") // read from env
+
+	// Base router.
+	v1 := r.Group(baseAPIURL)
+	{
+		v1.GET("/hello", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Hello from new v1.1",
+			})
+		})
+
+		v1.GET("/breweries", func(c *gin.Context) {
+			breweries, err := breweryService.GetAll(10, 0)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to sync breweries",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Synced breweries",
+				"breweries": breweries,
+			})
+		})
+
+		v1.GET("/events", func(c *gin.Context) {
+			events, err := eventService.GetAllEvents(1000, 0)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch events",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "All events",
+				"events":  events,
+			})
+		})
+
+		v1.GET("/cache/events", func(c *gin.Context) {
+			err := eventService.CacheAllEvents()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch events",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "cache events success",
+			})
+		})
+
+		v1.GET("/events/cached", func(c *gin.Context) {
+			events, err := eventService.FetchEventsByStartDate()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch events",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Cached events",
+				"events":  events,
+			})
+		})
+
+		// For Tours
+		v1.GET("/tours", func(c *gin.Context) {
+			tours, err := tourService.GetAllTours(1000, 0)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch tours",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "All tours",
+				"tours":   tours,
+			})
+		})
+
+		v1.GET("/cache/tours", func(c *gin.Context) {
+			err := tourService.CacheAllTours()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to cache tours",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Cache tours success",
+			})
+		})
+
+		v1.GET("/tours/cached", func(c *gin.Context) {
+			tours, err := tourService.FetchTours()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch cached tours",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Cached tours",
+				"tours":   tours,
+			})
+		})
+
+		// For BrewClasses
+		v1.GET("/brew-classes", func(c *gin.Context) {
+			brewClasses, err := brewClassService.GetAllBrewClass(1000, 0)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch brew classes",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message":     "All brew classes",
+				"brewClasses": brewClasses,
+			})
+		})
+
+		v1.GET("/cache/brew-classes", func(c *gin.Context) {
+			err := brewClassService.CacheAllBrewClasses()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to cache brew classes",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Cache brew classes success",
+			})
+		})
+
+		v1.GET("/brew-classes/cached", func(c *gin.Context) {
+			brewClasses, err := brewClassService.FetchBrewClasses()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch cached brew classes",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message":     "Cached brew classes",
+				"brewClasses": brewClasses,
+			})
+		})
+
+		v1.GET("/cache/breweries", func(c *gin.Context) {
+			err := breweryService.CacheAllBreweries()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to sync breweries",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Cached ALL breweries",
+			})
+		})
+
+		v1.GET("/clear/breweries", func(c *gin.Context) {
+			err := breweryService.ClearAllBreweries()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to sync breweries",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Clear ALL breweries",
+			})
+		})
+
+		v1.GET("/breweries/geo", func(c *gin.Context) {
+			latStr := c.DefaultQuery("lat", "")
+			lngStr := c.DefaultQuery("lng", "")
+			radiusStr := c.DefaultQuery("radius", "1") // Default to 1 unit
+			unit := c.DefaultQuery("unit", "km")       // Default to kilometers
+
+			lat, err := strconv.ParseFloat(latStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid latitude format"})
+				return
+			}
+
+			lng, err := strconv.ParseFloat(lngStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid longitude format"})
+				return
+			}
+
+			radius, err := strconv.ParseFloat(radiusStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid radius format"})
+				return
+			}
+
+			// Assuming breweryService is your service instance
+			nearbyBreweries, err := breweryService.GetBreweriesByProximity(lat, lng, radius, unit)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch breweries by proximity",
+					"error":   err.Error(),
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Fetched breweries by proximity",
+				"breweries": nearbyBreweries,
+			})
+		})
+
+		v1.GET("/breweries/geo/new", func(c *gin.Context) {
+			latStr := c.DefaultQuery("lat", "")
+			lngStr := c.DefaultQuery("lng", "")
+			radiusStr := c.DefaultQuery("radius", "1") // Default to 1 unit
+			unit := c.DefaultQuery("unit", "km")       // Default to kilometers
+
+			lat, err := strconv.ParseFloat(latStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid latitude format"})
+				return
+			}
+
+			lng, err := strconv.ParseFloat(lngStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid longitude format"})
+				return
+			}
+
+			radius, err := strconv.ParseFloat(radiusStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid radius format"})
+				return
+			}
+
+			// Assuming breweryService is your service instance
+			specialBreweries, err := breweryService.GetNewBreweriesByProximity(lat, lng, radius, unit)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch breweries by proximity",
+					"error":   err.Error(),
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Fetched breweries by proximity",
+				"breweries": specialBreweries,
+			})
+		})
+
+		v1.GET("/breweries/geo/pet-friendly", func(c *gin.Context) {
+			latStr := c.DefaultQuery("lat", "")
+			lngStr := c.DefaultQuery("lng", "")
+			radiusStr := c.DefaultQuery("radius", "1") // Default to 1 unit
+			unit := c.DefaultQuery("unit", "km")       // Default to kilometers
+
+			lat, err := strconv.ParseFloat(latStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid latitude format"})
+				return
+			}
+
+			lng, err := strconv.ParseFloat(lngStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid longitude format"})
+				return
+			}
+
+			radius, err := strconv.ParseFloat(radiusStr, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid radius format"})
+				return
+			}
+
+			specialBreweries, err := breweryService.GetPetFriendlyBreweriesByProximity(lat, lng, radius, unit)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to fetch breweries by proximity",
+					"error":   err.Error(),
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Fetched breweries by proximity",
+				"breweries": specialBreweries,
+			})
+		})
+
+		v1.POST("/update_trending/brewery", func(c *gin.Context) {
+			var request UpdateTrendingRequest
+			if err := c.ShouldBindJSON(&request); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Update trending score
+			err := breweryService.UpdateTrendingScore(request.BreweryID, request.Increment)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{"message": "Trending score updated successfully"})
+		})
+		v1.GET("/breweries/trending", func(c *gin.Context) {
+
+			trendingBreweries, err := breweryService.GetTopTrendingBreweries(10)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Failed to sync breweries",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Trending breweries",
+				"breweries": trendingBreweries,
+			})
+
+		})
+
+		v1.GET("/landing", func(c *gin.Context) {
+			// Use a WaitGroup to wait for all Goroutines to finish
+			var wg sync.WaitGroup
+
+			// Define variables to hold the results
+			var trendingBreweries []models.Breweries
+			var events []models.Event
+			var brewClasses []models.BrewClass
+			var tours []models.Tour
+
+			// Fetch trending breweries concurrently
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				trendingBreweries, _ = breweryService.GetTopTrendingBreweries(10)
+			}()
+
+			// Fetch events concurrently
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				events, _ = eventService.FetchEventsByStartDate()
+			}()
+
+			// Fetch brew classes concurrently
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				brewClasses, _ = brewClassService.FetchBrewClasses()
+			}()
+
+			// Fetch tours concurrently
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				tours, _ = tourService.FetchTours()
+			}()
+
+			// Wait for all Goroutines to finish
+			wg.Wait()
+
+			// Create the response
+			response := gin.H{
+				"trendingBreweries": trendingBreweries,
+				"events":            events,
+				"brewClasses":       brewClasses,
+				"tours":             tours,
+			}
+
+			c.JSON(http.StatusOK, response)
+		})
+
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		log.Fatal("PORT is not set in .env file")
+	}
+
+	r.Run(":" + port)
+}
+
+func connectDatabase() *driver.DB {
+	dsn := os.Getenv("DATABASE_URL")
+	db, err := driver.ConnectSQL(dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return db
+}

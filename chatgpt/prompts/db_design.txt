@@ -1,0 +1,23 @@
+You are a db (postgres) design expert. Help me create DB design for a Mobile APP. 
+The app is a like a social network chat app for people visiting breweries. 
+
+App has some of the below features.  
+
+- The app will have listing of all the breweries in a city, with geo information.
+- user information 
+- user interestes  
+- user profile 
+- one_to_one chat 
+- meetup in breweries
+- listing events, attending events. 
+- listing brew_tours, attending tours. 
+- listing brew_classes, attending classes. 
+- listing communites, attending communites. 
+- brewery checkin 
+- brewery offers 
+- mybox feature with user personolized offers
+- user history, visits 
+- refer friend 
+
+ Dont give any explanation, answer yes if you understand. Post that I will give you more information to create specific tables, don't generate more than whats asked for. 
+ Just give code snippet db table script for postgres when asked for.  

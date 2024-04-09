@@ -1,0 +1,111 @@
+You are a go lang coding master, Please create go lang db (postgres) repository file like the below example. Dont give any explanation, 
+just give code snippet, dont give the generated file right way , just answer yes if you understand. Post that I have give you new model file for you to create new repository file for. 
+
+
+//models/db/user.go
+package models
+
+type User struct {
+	ID                          string         `db:"id"`
+	UserID                      string         `db:"user_id"`
+	Name                        string         `db:"name"`
+	AboutMe                     string         `db:"about_me"`
+	Gender                      string         `db:"gender"`
+	Email                       string         `db:"email"`
+	ProfileURL                  string         `db:"profile_url"`
+	Images                      pq.StringArray `db:"images"`
+	DOB                         time.Time      `db:"dob"`
+	IsOnline                    bool           `db:"is_online"`
+	AllowNotifications          bool           `db:"allow_notifications"`
+	AllowLocation               bool           `db:"allow_location"`
+	PhoneNumber                 string         `db:"phone_number"`
+	IsLegalAge                  bool           `db:"is_legal_age"`
+	Provider                    string         `db:"provider"`
+	BrewInterests               pq.StringArray `db:"brew_interests"`
+	PersonalInterests           pq.StringArray `db:"personal_interests"`
+	PhoneNumberVerified         bool           `db:"phone_number_verified"`
+	PhoneNumberVerificationDate time.Time      `db:"phone_number_verification_date"`
+	OnboardingStatus            string         `db:"onboarding_status"`
+	OTPVerifiedAt               time.Time      `db:"otp_verified_at"`
+	ProfileCompletedAt          time.Time      `db:"profile_completed_at"`
+	CreatedAt                   time.Time      `db:"created_at"`
+	UpdatedAt                   time.Time      `db:"updated_at"`
+}
+
+-- 
+
+package repository
+
+import (
+	"context"
+
+	"github.com/sirupsen/logrus"
+	"github.com/vivekbnwork/bz-backend/bz-main/driver"
+	models "github.com/vivekbnwork/bz-backend/bz-main/models/db"
+)
+
+type UserRepository struct {
+	db *driver.DB
+}
+
+func NewUserRepository(database *driver.DB) *UserRepository {
+	return &UserRepository{
+		db: database,
+	}
+}
+
+// GetUsers fetches a list of users with pagination.
+func (repo *UserRepository) GetUsers(limit, offset int) ([]models.User, error) {
+	var users []models.User
+
+	// Replace "users" with your actual table name.
+	query := `
+		SELECT *
+		
+		FROM users
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := repo.db.Pool.Query(context.Background(), query, limit, offset)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service":  "bz-main",
+			"file":     "user_repository",
+			"function": "GetUsers",
+		}).Errorf("Unable to execute the query. %v", err)
+
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user models.User
+		var imagesArray, brewInterestsArray, personalInterestsArray []string // Use pq.StringArray for each array column
+
+		err = rows.Scan(
+			&user.ID, &user.UserID, &user.Name, &user.AboutMe, &user.Gender, &user.Email, &user.ProfileURL,
+			&imagesArray, &user.DOB, &user.IsOnline, &user.AllowNotifications, &user.AllowLocation,
+			&user.PhoneNumber, &user.IsLegalAge, &user.Provider, &brewInterestsArray, &personalInterestsArray,
+			&user.PhoneNumberVerified, &user.PhoneNumberVerificationDate, &user.OnboardingStatus, &user.OTPVerifiedAt,
+			&user.ProfileCompletedAt, &user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"service":  "bz-main",
+				"file":     "user_repository",
+				"function": "ListUsers",
+			}).Errorf("Unable to scan the row. %v", err)
+
+			return nil, err
+		}
+
+		// Convert pq.StringArray to slices of strings
+		user.Images = imagesArray
+		user.BrewInterests = brewInterestsArray
+		user.PersonalInterests = personalInterestsArray
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}

@@ -1,0 +1,57 @@
+You are a go lang coding master, Please create go lang service file like the below example. Dont give any explanation, 
+just give code snippet, dont give the generated file right way , just answer yes if you understand. Post that I have give you new model file for you to create new service file for. 
+
+other info - 
+logrus service - bz-main
+
+//models/db/user.go
+package models
+
+type User struct {
+	ID   string `db:"id"`
+	Name string
+	Age  int
+}
+
+-- 
+
+package service
+
+import (
+	"github.com/jinzhu/copier"
+	"github.com/sirupsen/logrus"
+	models "github.com/vivekbnwork/bz-backend/bz-main/models/dto"
+	"github.com/vivekbnwork/bz-backend/bz-main/repository"
+)
+
+type UserService struct {
+	userRepo *repository.UserRepository
+}
+
+// Constructor function for UserService
+func NewUserService(r *repository.UserRepository) *UserService {
+	return &UserService{userRepo: r}
+}
+
+func (us *UserService) ListAllUsers() []models.UserDTO {
+
+	logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "ListAllUsers",
+	}).Debug("List Users - Start")
+
+	// Using defer to ensure the log is printed regardless of where we exit the function.
+	defer logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "ListAllUsers",
+	}).Debug("List Users - End")
+
+	users := us.userRepo.ListAllUsers()
+
+	// Convert users to userDtos
+	var userDtos []models.UserDTO
+	copier.Copy(&userDtos, &users)
+
+	return userDtos
+}
+

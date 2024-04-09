@@ -1,0 +1,15 @@
+.PHONY: all clean
+
+PROTO_DIR = /grpc/proto
+PACKAGE = github.com/vivekbnwork/bz-backend/bz-main
+BIN_DIR = bin
+SERVER_DIR = server
+
+
+all: user
+
+clean:
+	
+user:
+
+	protoc -I. --go_out=./grpc/proto --go_opt=module=github.com/vivekbnwork/bz-backend/bz-main --go-grpc_out=./grpc/proto --go-grpc_opt=module=github.com/vivekbnwork/bz-backend/bz-main ./grpc/proto/user.proto

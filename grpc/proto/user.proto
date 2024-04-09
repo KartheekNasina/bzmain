@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/vivekbnwork/bz-backend/bz-main/grpc/proto";
+
+message User {
+    string id = 1;
+    bool is_online = 2;
+    bool allow_notifications = 3;
+    bool allow_location = 4;
+    bool is_legal_age = 5;
+    bool phone_number_verified = 6;
+    string phone_number_verification_date = 7; // Consider using Google's Timestamp type for better handling
+    string onboarding_status = 8;
+    string otp_verified_at = 9; // Consider using Google's Timestamp type for better handling
+    string profile_completed_at = 10; // Consider using Google's Timestamp type for better handling
+    string created_at = 11; // Consider using Google's Timestamp type for better handling
+    string updated_at = 12; // Consider using Google's Timestamp type for better handling
+    string dob = 13;
+    string user_id = 14;
+    string name = 15;
+    string about_me = 16;
+    string gender = 17;
+    string email = 18;
+    string profile_url = 19;
+    repeated string images = 20; // Using repeated for arrays
+    string phone_number = 21;
+    repeated string personal_interests = 22; // Using repeated for arrays
+    string provider = 23;
+    repeated string brew_interests = 24; // Using repeated for arrays
+}
+
+message GetAllUsersRequest {
+    // Any filtering or pagination parameters can be added here
+}
+
+message GetAllUsersResponse {
+    repeated User users = 1;
+}
+
+// Service
+service UserService {
+    rpc getAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse);
+}

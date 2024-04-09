@@ -1,0 +1,17 @@
+Go-Lang generete golang service file structure similar to the one below (Beer). 
+Dont give any explanation, 
+just give code snippet, dont give the generated function right way , just answer yes if you understand. Post that I have give you and information for you to create the new service file. 
+
+package service
+
+import (
+	"github.com/vivekbnwork/bz-backend/bz-main/repository"
+)
+
+type BeerService struct {
+	beerRepo *repository.BeerRepository
+}
+
+func NewBeerService(r *repository.BeerRepository) *BeerService {
+	return &BeerService{beerRepo: r}
+}

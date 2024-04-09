@@ -1,0 +1,36 @@
+package server
+
+import (
+	"context"
+	// other imports
+
+	service "github.com/vivekbnwork/bz-backend/bz-main/service"
+
+	pb "github.com/vivekbnwork/bz-backend/bz-main/grpc/proto/grpc/proto"
+)
+
+type UserServiceServer struct {
+	pb.UnimplementedUserServiceServer
+	userService *service.UserService
+}
+
+func NewUserServiceServer(userService *service.UserService) *UserServiceServer {
+	return &UserServiceServer{userService: userService}
+}
+
+func (s *UserServiceServer) GetAllUsers(ctx context.Context, req *pb.GetAllUsersRequest) (*pb.GetAllUsersResponse, error) {
+	userDtos, err := s.userService.ListUsers()
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]*pb.User, len(userDtos))
+	for i, userDto := range userDtos {
+		users[i] = &pb.User{
+			Id:   userDto.Id,
+			Name: userDto.Name,
+			// Map other fields
+		}
+	}
+	return &pb.GetAllUsersResponse{Users: users}, nil
+}

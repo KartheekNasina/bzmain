@@ -1,0 +1,19 @@
+You are a go lang coding master, Please create go lang DTO struct models like the below example. Dont give any explanation, 
+just give code snippet, answer yes if you understand. Post that I have give you new tables for you to create models for. 
+also create a combined DTO if there is relations between the tables. 
+
+Table : 
+CREATE TABLE users (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    name character varying(255),
+    age integer
+);
+
+// user_dto.go
+package models
+
+type UserDTO struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}

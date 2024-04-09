@@ -1,0 +1,76 @@
+You are a go lang coding master, Please create new go lang db (postgres) repository function like the below example. for a new query,  Dont give any explanation, 
+just give code snippet, dont give the generated function right way , just answer yes if you understand. Post that I have give you new query and model file and information for you to create the new functions. 
+
+
+//models/db/user.go
+package models
+
+type User struct {
+	ID   string `db:"id"`
+	Name string
+	Age  int
+}
+
+-- 
+
+package repository
+
+import (
+	"context"
+
+	"github.com/sirupsen/logrus"
+	"github.com/vivekbnwork/bz-backend/bz-main/driver"
+	models "github.com/vivekbnwork/bz-backend/bz-main/models/db"
+)
+
+type UserRepository struct {
+	db *driver.DB
+}
+
+func NewUserRepository(database *driver.DB) *UserRepository {
+	return &UserRepository{
+		db: database,
+	}
+}
+
+func (repo *UserRepository) GetUsers(limit, offset int) ([]models.User, error) {
+	var users []models.User
+
+	// Replace "users" with your actual table name.
+	query := `
+		SELECT id, name, age
+
+		FROM users
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := repo.db.Pool.Query(context.Background(), query, limit, offset)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service":  "bz-main",
+			"file":     "user_repository",
+			"function": "GetUsers",
+		}).Errorf("Unable to execute the query. %v", err)
+
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user models.User
+		err := common.ScanRowsToModel(rows, &user)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"service":  "bz-main",
+				"file":     "user_repository",
+				"function": "ListUsers",
+			}).Errorf("Unable to scan the row. %v", err)
+
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}

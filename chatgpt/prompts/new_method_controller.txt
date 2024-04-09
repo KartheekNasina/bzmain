@@ -1,0 +1,36 @@
+You are a go lang coding master, Please create go lang controller function like the below example. Dont give any explanation, 
+just give code snippet, dont give the generated file right way , just answer yes if you understand. Post that I will give you new model file with information needed to create new function. 
+
+other info - 
+logrus service - bz-main
+
+//models/db/user.go
+package models
+
+type User struct {
+	ID   string `db:"id"`
+	Name string
+	Age  int
+}
+
+-- 
+package controllers
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/vivekbnwork/bz-backend/bz-main/service"
+)
+
+type UserController struct {
+	userService *service.UserService
+}
+
+// Constructor function for UserController
+func NewUserController(s *service.UserService) *UserController {
+	return &UserController{userService: s}
+}
+
+func (uc *UserController) ListAllUsers(c *gin.Context) {
+	users := uc.userService.ListAllUsers()
+	c.JSON(200, users)
+}

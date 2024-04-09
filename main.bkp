@@ -1,0 +1,81 @@
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
+
+	"github.com/vivekbnwork/bz-backend/bz-main/driver"
+	"github.com/vivekbnwork/bz-backend/bz-main/routes"
+)
+
+func init() {
+	loadEnv()
+}
+
+func loadEnv() {
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found")
+	}
+}
+
+var ctx = context.Background()
+
+func connectDatabase() *driver.DB {
+	dsn := os.Getenv("DATABASE_URL")
+	db, err := driver.ConnectSQL(dsn)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	return db
+}
+
+func main() {
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.Default()
+
+	db := connectDatabase() // Use the local function directly without any prefix
+	defer db.Pool.Close()   // Defer the closing of the database connection pool to when the app exits
+
+	// rdb := redis.NewClient(&redis.Options{
+	// 	Addr:     "localhost:6379", // Redis server address
+	// 	Password: "",               // No password
+	// 	DB:       0,                // Default DB
+	// })
+
+	// pong, err := rdb.Ping(ctx).Result()
+	// if err != nil {
+	// 	fmt.Println("Could not connect to Redis:", err)
+	// 	return
+	// }
+
+	// fmt.Println("Connected to Redis:", pong)
+
+	env := os.Getenv("ENV")
+
+	switch env {
+	case "PROD":
+		logrus.SetLevel(logrus.InfoLevel) // Only log INFO and above in production
+	case "DEV":
+		logrus.SetLevel(logrus.DebugLevel) // Log everything in development
+	default:
+		logrus.SetLevel(logrus.WarnLevel) // Default to WARN level
+	}
+
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	// Initialize routes
+	routes.InitializeRoutes(router, db) // Pass the db to InitializeRoutes
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		logrus.Fatal("PORT is not set in .env file")
+	}
+
+	router.Run(":" + port)
+}

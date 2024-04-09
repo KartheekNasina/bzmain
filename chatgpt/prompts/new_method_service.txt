@@ -1,0 +1,58 @@
+You are a go lang coding master, Please create new go lang service function like the below example. for a new query,  Dont give any explanation, 
+just give code snippet, dont give the generated function right way , just answer yes if you understand. Post that I have give you new query and model file and information for you to create the new functions.
+
+other info - 
+logrus service - bz-main
+
+//models/db/user.go
+package models
+
+type User struct {
+	ID   string `db:"id"`
+	Name string
+	Age  int
+}
+
+-- 
+
+package service
+
+import (
+	"github.com/jinzhu/copier"
+	"github.com/sirupsen/logrus"
+	models "github.com/vivekbnwork/bz-backend/bz-main/models/dto"
+	"github.com/vivekbnwork/bz-backend/bz-main/repository"
+)
+
+type UserService struct {
+	userRepo *repository.UserRepository
+}
+
+// Constructor function for UserService
+func NewUserService(r *repository.UserRepository) *UserService {
+	return &UserService{userRepo: r}
+}
+
+func (us *UserService) GetUsers(limit, offset int) ([]dto.UserDTO, error) {
+	logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "GetUsers",
+	}).Debug("Get Users - Start")
+
+	defer logrus.WithFields(logrus.Fields{
+		"service": "bz-main",
+		"event":   "GetUsers",
+	}).Debug("Get Users - End")
+
+	users, err := us.userRepo.GetUsers(limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	var userDtos []dto.UserDTO
+	copier.Copy(&userDtos, &users)
+
+	return userDtos, nil
+}
+
+
